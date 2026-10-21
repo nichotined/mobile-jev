@@ -7,4 +7,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: python test_laya_browser.py  # stdlib-only: fake agent, no MLX needed
+      - run: python test_mobile_jev.py  # stdlib-only: fake agent, no API key needed

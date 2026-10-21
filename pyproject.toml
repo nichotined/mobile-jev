@@ -1,30 +1,26 @@
 [project]
-name = "laya-browser"
+name = "mobile-jev"
 version = "0.1.0"
-description = "agent-browser drop-in with on-device natural-language element targeting via Laya-MLX"
+description = "mobilecli drop-in with natural-language element targeting via Jev (typesafe.ai)"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-authors = [{ name = "Benjamin Vollmer" }]
+authors = [{ name = "Nicholas Frederich Lagaunne" }, { name = "Benjamin Vollmer" }]
 requires-python = ">=3.11"
-keywords = ["agent-browser", "browser-automation", "ai-agents", "mlx", "laya", "apple-silicon"]
+keywords = ["mobilecli", "mobile-automation", "ai-agents", "jev", "typesafe", "android", "ios"]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "Operating System :: MacOS",
   "Programming Language :: Python :: 3",
-  "Topic :: Internet :: WWW/HTTP :: Browsers",
+  "Topic :: Software Development :: Testing",
 ]
-dependencies = ["laya-mlx>=0.2,<0.3"]
+dependencies = []
 
 [project.scripts]
-laya-browser = "laya_browser:main"
+mobile-jev = "mobile_jev:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-only-include = ["laya_browser.py"]
-
-[tool.hatch.build.targets.sdist]
-exclude = ["docs/", "recordings/"]
+only-include = ["mobile_jev.py"]
