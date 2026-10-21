@@ -1,91 +1,61 @@
-# laya-browser
+# mobile-jev
 
-**[agent-browser](https://github.com/vercel-labs/agent-browser), but selectors can be plain English, resolved on-device in milliseconds.**
+**[mobilecli](https://github.com/mobile-next/mobilecli), but tap targets can be plain English, resolved by [Jev](https://typesafe.ai) in a single typed decision.**
 
-`laya-browser` accepts every agent-browser command and passes it through unchanged. When a selector is English (`click "log in"`) instead of a `@ref` or CSS, a local [Laya](https://github.com/NandhaKishorM/laya) typed-decision model (via [laya-mlx](https://github.com/mizorewww/laya-mlx)) picks the matching element from the page snapshot. The agent skips the snapshot → read → pick-ref round-trip, and there's no LLM call or token cost.
+`mobile-jev` accepts every mobilecli command and passes it through unchanged. When a `tap`/`longpress` target is English (`io tap "log in"`) instead of an `@ref` or `x,y`, the screen's UI tree is sent to Jev, TypeSafe's typed-decision model, which picks the matching element. The agent skips the dump → read → pick-ref round-trip, and there's no LLM call or prompt to parse.
 
-![agent-browser + local LLM vs laya-browser, wikiracing side by side](docs/sidebyside.gif)
-
-*Wikiracing Rubber duck → Albert Einstein with links only. Left: agent-browser with Qwen3-30B-A3B (local Ollama, thinking off) choosing links, **26.3 s / 9 steps**. Right: laya-browser, **3.1 s / 5 steps**.*
+Forked from [laya-browser](https://github.com/Benny93/laya-browser), which does the same for agent-browser with a local Laya model.
 
 ## Install
 
-Requires Apple Silicon, macOS 14+, Python 3.11+, and [agent-browser](https://github.com/vercel-labs/agent-browser) on `PATH`.
+Requires Python 3.11+, [mobilecli](https://github.com/mobile-next/mobilecli) on `PATH`, and a TypeSafe API key from [console.typesafe.ai](https://console.typesafe.ai).
 
 ```bash
-uv tool install git+https://github.com/Benny93/laya-browser   # or: git clone … && uv tool install --editable .
+uv tool install git+https://github.com/nichotined/mobile-jev   # or: git clone … && uv tool install --editable .
+export TYPESAFE_API_KEY=...
 ```
 
-The first English selector downloads the model (`aac6fef/laya-mlx`, ~800 MB) from Hugging Face.
-
-### Behind a TLS-intercepting proxy (`invalid peer certificate: UnknownIssuer`)
-
-Corporate proxies re-sign HTTPS with their own root CA. It lives in the macOS keychain, which uv and Python don't read by default.
-
-1. **Installing:** tell uv to use the system certificates:
-   ```bash
-   uv tool install --system-certs git+https://github.com/Benny93/laya-browser   # or: export UV_SYSTEM_CERTS=1
-   ```
-2. **Downloading the model:** the Hugging Face client (`CERTIFICATE_VERIFY_FAILED`) needs a CA bundle file. Export the keychain roots once and point Python at it. The laya-browser daemon inherits these variables from the shell that starts it.
-   ```bash
-   security find-certificate -a -p /Library/Keychains/System.keychain \
-     /System/Library/Keychains/SystemRootCertificates.keychain > ~/.ca-bundle.pem
-   export SSL_CERT_FILE=~/.ca-bundle.pem REQUESTS_CA_BUNDLE=~/.ca-bundle.pem  # add to ~/.zshrc
-   ```
-
-Or download the model once with those variables set (`hf download aac6fef/laya-mlx`). After that it loads from the local cache.
+No other dependencies: Jev is called with the standard library.
 
 ## Usage
 
 ```bash
-laya-browser open https://httpbin.org/forms/post
-laya-browser fill "telephone" 555-1234   # laya: 'telephone' -> @e3 textbox "Telephone: " (1.00)
-laya-browser check "extra cheese"
-laya-browser click "place the order"
-laya-browser click @e3                   # refs, CSS, XPath, text= … pass straight through
-laya-browser click "~button"             # leading ~ forces English for words that look like tag names
+export MOBILECLI_DEVICE=Medium_Phone_API_35       # or pass --device after the selector
+mobile-jev io tap "log in"                        # jev: 'log in' -> @e12 Button "Log in" (1.00)
+mobile-jev io longpress "the first message" --device emulator-5554
+mobile-jev io tap @e5                             # refs and coordinates pass straight through
+mobile-jev io tap 100,200
+mobile-jev io fill "hello"                        # every other command is plain mobilecli
 ```
 
-Each resolved pick is logged to stderr with its confidence, so an agent can fall back to a `@ref` when it's low.
+Each resolved pick is logged to stderr with its confidence, so an agent can fall back to an `@ref` when it's low.
 
 **Resolution:**
-1. Run `agent-browser snapshot -i`.
+1. Run `mobilecli dump ui` and keep elements that have text, a label, or are clickable.
 2. Try an unambiguous text match with no model: "log in" → `login`, "large pizza" → radio `Large`.
-3. Otherwise run one batched Laya decision over the snapshot's elements: ~15 ms for ≤32 elements, a 32-per-chunk tournament above that.
-
-A background daemon keeps the model loaded. It starts on first use (~1 s) and exits after 30 minutes idle.
-
-**Selectors:** English is resolved in `click dblclick type fill hover focus check uncheck select upload download scrollintoview highlight wait drag is get`.
+3. Otherwise ask Jev one `choice` question over the elements (up to 255 options per question; bigger screens run a tournament in one request).
+4. Exec `mobilecli io tap @eN …` with the picked ref.
 
 **Environment:**
-- `LAYA_MODEL`: Hugging Face checkpoint to use (default `aac6fef/laya-mlx`).
-- `AGENT_BROWSER`: path to the agent-browser binary.
-
-## Benchmarks
-
-```bash
-uv sync
-uv run python wikirace.py                 # 5 wikiracing tasks, local Laya only
-uv run python sidebyside.py [task] [ollama-model]  # records docs/sidebyside.gif (needs Ollama + ffmpeg)
-```
-
-Wikiracing tasks follow [jev-for-chrome](https://github.com/chy4pro/jev-for-chrome)'s e2e format. Laya makes each decision over 50–730 links in ~50–300 ms. On route quality it reached **2 of 5** targets within 14 steps: it follows topical similarity and doesn't plan a route. See [benchmarks-wikirace.md](benchmarks-wikirace.md).
-
-Measure with no other large model resident on the GPU. A loaded 24 GB Ollama model slowed Laya decisions roughly 10×.
+- `TYPESAFE_API_KEY`: required for step 3.
+- `JEV_MODEL`: Jev model (default `jev-latest`).
+- `TYPESAFE_API_URL`: API endpoint (default `https://api.typesafe.ai/v1/systemone`).
+- `MOBILECLI`: path to the mobilecli binary.
 
 ## Limitations
 
-- English isn't resolved inside `batch`.
-- Put flags after positional arguments (`click "x" --flag`).
-- Selector detection is a heuristic. A bare HTML tag name (`button`) stays CSS; use `~button` for English.
-- Laya is a small decision model. Confidence isn't a guarantee, and vague targets on crowded pages can miss.
+- Only `io tap` and `io longpress` resolve English. To fill a field, tap it first, then `io fill`.
+- Put flags after the selector (`io tap "x" --device …`).
+- Any target that isn't `@eN` or `x,y` counts as English.
+- Step 3 is a paid network call to Jev; exact text matches skip it.
+- Jev's confidence isn't a guarantee, and vague targets on crowded screens can miss.
 
 ## Development
 
 ```bash
-python test_laya_browser.py   # stdlib-only check, no model needed
+python test_mobile_jev.py   # stdlib-only check, no device or API key needed
 ```
 
 ## License
 
-Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Laya weights are by Convai Innovations; laya-mlx is a community MLX port. Neither is affiliated with this project.
+Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Jev is by TypeSafe; mobilecli is by mobile-next. Neither is affiliated with this project.

@@ -1,11 +1,9 @@
-laya-browser
-Copyright 2026 laya-browser contributors
+mobile-jev
+Copyright 2026 mobile-jev contributors
 
-laya-browser drives agent-browser (https://github.com/vercel-labs/agent-browser) and
-runs Laya decision models through laya-mlx (https://github.com/mizorewww/laya-mlx),
-both installed separately. Laya and its pretrained weights are by Convai Innovations
-and Laya contributors (https://github.com/NandhaKishorM/laya), Apache-2.0. Weights are
-downloaded from Hugging Face on first use and are not included in this repository.
+mobile-jev is a fork of laya-browser (https://github.com/Benny93/laya-browser),
+Copyright 2026 laya-browser contributors, Apache-2.0.
 
-The wikiracing task format and the Rubber duck -> Eiffel Tower and Coffee -> Espresso
-tasks follow jev-for-chrome's e2e suite (https://github.com/chy4pro/jev-for-chrome).
+mobile-jev drives mobilecli (https://github.com/mobile-next/mobilecli), installed
+separately, and sends element choices to the Jev model hosted by TypeSafe
+(https://typesafe.ai). Neither is affiliated with this project.
